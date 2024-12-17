@@ -20,14 +20,14 @@ void eating(Forks& rightFork, Forks& leftFork, int philosopherNumber) {
     unique_lock<mutex> leftLock(leftFork.mtx);
     
     // Философ начинает есть
-    cout << "Философ " << philosopherNumber << " ест\n";
+    cout << "Философ " << philosopherNumber << ": Ест\n";
     
     // Устанавливаем время для еды (2 секунды)
     chrono::milliseconds eatingTime(2000);
     this_thread::sleep_for(eatingTime);
     
     // Философ заканчивает есть
-    cout << "Философ " << philosopherNumber << " доел\n";
+    cout << "Философ " << philosopherNumber << ": Доел\n";
 }
 
 int main() {
@@ -36,14 +36,14 @@ int main() {
     vector<thread> threads; // Вектор потоков для каждого философа
     
     // Начинаем с того, что первый философ думает
-    cout << "Философ " << 1 << " думает\n"; 
+    cout << "Философ " << 1 << ": Думает\n"; 
     
     // Первый философ использует первую и последнюю вилку
     threads.emplace_back(eating, ref(forks[0]), ref(forks[philosophers - 1]), 1);
     
     // Для остальных философов создаём потоки с использованием соответствующих вилок
     for (int i = 1; i < philosophers; i++) {
-        cout << "Философ " << i + 1 << " думает\n";
+        cout << "Философ " << i + 1 << ": Думает\n";
         // Каждый философ использует текущую вилку и предыдущую
         threads.emplace_back(eating, ref(forks[i]), ref(forks[i - 1]), i + 1);
     }
