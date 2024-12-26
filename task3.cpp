@@ -1,56 +1,92 @@
 #include <iostream>
+#include <thread>
 #include <mutex>
 #include <chrono>
-#include <thread>
-#include <vector>
 
 using namespace std;
 
-// Класс для представления вилок
-class Forks {
+class ThreadVector {
 public:
-    Forks() = default; // Конструктор по умолчанию
-    mutex mtx; // Мьютекс для каждой вилки
+    ThreadVector() : size_(0), capacity_(1) {
+        threads_ = new thread*[capacity_];
+    }
+
+    ~ThreadVector() {
+        delete[] threads_;
+    }
+
+    void add(thread* t) {
+        if (size_ == capacity_) {
+            expand();
+        }
+        threads_[size_++] = t;
+    }
+
+    thread* get(size_t index) const {
+        return threads_[index];
+    }
+
+    size_t count() const {
+        return size_;
+    }
+
+private:
+    thread** threads_;
+    size_t size_;
+    size_t capacity_;
+
+    void expand() {
+        capacity_ *= 2;
+        thread** new_threads = new thread*[capacity_];
+        for (size_t i = 0; i < size_; ++i) {
+            new_threads[i] = threads_[i];
+        }
+        delete[] threads_;
+        threads_ = new_threads;
+    }
 };
 
-// Функция, в которой философ ест, блокируя вилки
-void eating(Forks& rightFork, Forks& leftFork, int philosopherNumber) {
-    // Блокируем обе вилки с помощью unique_lock для обеспечения синхронизации
-    unique_lock<mutex> rightLock(rightFork.mtx);
-    unique_lock<mutex> leftLock(leftFork.mtx);
-    
-    // Философ начинает есть
-    cout << "Философ " << philosopherNumber << ": Ест\n";
-    
-    // Устанавливаем время для еды (2 секунды)
-    chrono::milliseconds eatingTime(2000);
-    this_thread::sleep_for(eatingTime);
-    
-    // Философ заканчивает есть
-    cout << "Философ " << philosopherNumber << ": Доел\n";
+const int kNumPhilosophers = 5;
+mutex forks[kNumPhilosophers];
+mutex output_lock;
+
+void philosopherRoutine(int id) {
+    {
+        lock_guard<mutex> lock(output_lock);
+        cout << "Философ " << id + 1 << " размышляет\n";
+    }
+    this_thread::sleep_for(chrono::seconds(5));
+
+    // Определяем порядок взятия вилок, чтобы избежать взаимной блокировки
+    mutex& first_fork = forks[min(id, (id + 1) % kNumPhilosophers)];
+    mutex& second_fork = forks[max(id, (id + 1) % kNumPhilosophers)];
+
+    lock(first_fork, second_fork);
+    lock_guard<mutex> lock1(first_fork, adopt_lock);
+    lock_guard<mutex> lock2(second_fork, adopt_lock);
+
+    {
+        lock_guard<mutex> lock(output_lock);
+        cout << "Философ " << id + 1 << " ест\n";
+    }
+    this_thread::sleep_for(chrono::seconds(5));
+
+    {
+        lock_guard<mutex> lock(output_lock);
+        cout << "Философ " << id + 1 << " закончил\n";
+    }
 }
 
 int main() {
-    const int philosophers = 5; // Количество философов
-    vector<Forks> forks(philosophers); // Вектор вилок для философов
-    vector<thread> threads; // Вектор потоков для каждого философа
-    
-    // Начинаем с того, что первый философ думает
-    cout << "Философ " << 1 << ": Думает\n"; 
-    
-    // Первый философ использует первую и последнюю вилку
-    threads.emplace_back(eating, ref(forks[0]), ref(forks[philosophers - 1]), 1);
-    
-    // Для остальных философов создаём потоки с использованием соответствующих вилок
-    for (int i = 1; i < philosophers; i++) {
-        cout << "Философ " << i + 1 << ": Думает\n";
-        // Каждый философ использует текущую вилку и предыдущую
-        threads.emplace_back(eating, ref(forks[i]), ref(forks[i - 1]), i + 1);
+    ThreadVector threads;
+
+    for (int i = 0; i < kNumPhilosophers; ++i) {
+        threads.add(new thread(philosopherRoutine, i));
     }
-    
-    // Ожидаем завершения всех потоков
-    for (auto& t : threads) {
-        t.join();
+
+    for (size_t i = 0; i < threads.count(); ++i) {
+        threads.get(i)->join();
+        delete threads.get(i);
     }
 
     return 0;

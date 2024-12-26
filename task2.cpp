@@ -87,8 +87,7 @@ vector<string> findRecipientsSingleThread(const vector<Package>& packages, const
 }
 
 // Функция для поиска фамилий в многопоточном режиме
-void findRecipientsMultiThread(const vector<Package>& packages, const regex& pattern, 
-                               vector<string>& recipients, mutex& mtx, size_t start, size_t end) {
+void findRecipientsMultiThread(const vector<Package>& packages, const regex& pattern, vector<string>& recipients, mutex& mtx, size_t start, size_t end) {
     vector<string> localRecipients;
     for (size_t i = start; i < end; ++i) {
         if (regex_match(packages[i].productCode, pattern)) {
@@ -102,8 +101,8 @@ void findRecipientsMultiThread(const vector<Package>& packages, const regex& pat
 
 int main() {
     // Параметры генерации данных
-    size_t dataSize = 1000000; // Размер массива данных
-    int numThreads = 100;       // Количество потоков
+    size_t dataSize = 100; // Размер массива данных
+    int numThreads = 5;       // Количество потоков
 
     // Генерация случайных данных
     vector<Package> packages = generateRandomPackages(dataSize);
@@ -132,8 +131,7 @@ int main() {
     for (int i = 0; i < numThreads; ++i) {
         size_t startIdx = i * chunkSize;
         size_t endIdx = (i == numThreads - 1) ? packages.size() : (i + 1) * chunkSize;
-        threads.emplace_back(findRecipientsMultiThread, ref(packages), ref(pattern), 
-                             ref(multiThreadRecipients), ref(mtx), startIdx, endIdx);
+        threads.emplace_back(findRecipientsMultiThread, ref(packages), ref(pattern), ref(multiThreadRecipients), ref(mtx), startIdx, endIdx);
     }
 
     for (auto& t : threads) {
